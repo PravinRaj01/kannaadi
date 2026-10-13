@@ -46,6 +46,21 @@
 
   const hasTamil = (text) => /[஀-௿]/.test(text);
 
+  // Split text into alternating runs: [{tamil: true, text: 'வணக்கம்'}, {tamil: false, text: ', hi '}, ...]
+  function splitTamil(text) {
+    const runs = [];
+    const re = /[஀-௿]+/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) runs.push({ tamil: false, text: text.slice(last, m.index) });
+      runs.push({ tamil: true, text: m[0] });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) runs.push({ tamil: false, text: text.slice(last) });
+    return runs;
+  }
+
   // Tokens: {t:'v', ch} independent vowel | {t:'c', ch, pure, sign} consonant | {t:'o', ch} anything else
   function tokenize(text) {
     const chars = Array.from(text.normalize('NFC'));
@@ -119,5 +134,5 @@
     return out;
   }
 
-  return { transliterate, hasTamil };
+  return { transliterate, hasTamil, splitTamil };
 });

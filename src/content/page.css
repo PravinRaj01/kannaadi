@@ -1,0 +1,13 @@
+/* Injected into pages: only styles the wrapper Kannaadi puts around a replaced word. */
+kannaadi-w {
+  display: inline;
+  border-radius: 3px;
+  text-decoration: underline dotted rgba(11, 143, 131, 0.75);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: background-color 0.12s ease;
+}
+
+kannaadi-w:hover {
+  background-color: rgba(11, 143, 131, 0.14);
+}

@@ -1,12 +1,12 @@
-// Kannaadi content script: detects a Tamil selection, shows a glass icon / card, replaces text with undo.
+// Kannaadi content script: Tamil selection -> glass icon -> lens / card, plus replace with per-word restore.
 (() => {
   'use strict';
 
   const K = globalThis.Kannaadi;
   if (!K || !K.transliterate) return;
-  const { transliterate, hasTamil } = K;
+  const { transliterate, hasTamil, splitTamil } = K;
 
-  const settings = { scheme: 'tanglish', autoIcon: true };
+  const settings = { scheme: 'tanglish', autoIcon: true, view: 'lens' };
   try {
     chrome.storage.sync.get(settings, (v) => { if (v) Object.assign(settings, v); });
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -19,13 +19,22 @@
   let shadow = null;
   let ready = Promise.resolve();
   let iconEl = null;
-  let cardEl = null;
+  let viewEl = null;        // card or lens wrapper (only one at a time)
+  let lensState = null;     // {snap, wrap, body, bar} while a lens is open
   let pillEl = null;
   let pillTimer = 0;
+  let chipEl = null;
+  let chipWord = null;
+  let chipShowTimer = 0;
+  let chipHideTimer = 0;
   let updateTimer = 0;
+  let layoutFrame = 0;
+  let lastOpen = 0;
   let current = null;       // snapshot of the current Tamil selection
   let pointer = null;       // last mouseup position, used to anchor text-field selections
   let mouseDown = false;
+
+  const PAD = 6;            // how far the lens extends past the selected text
 
   // ---------- host + shadow DOM ----------
 
@@ -58,7 +67,12 @@
     return node;
   }
 
-  // Place `el` near a client-space anchor, clamped to the viewport, flipping above when there is no room below.
+  function setPos(el, clientX, clientY) {
+    el.style.left = Math.round(clientX + window.scrollX) + 'px';
+    el.style.top = Math.round(clientY + window.scrollY) + 'px';
+  }
+
+  // Below a client-space anchor, clamped to the viewport; flips above when there is no room.
   function place(el, anchor, gap) {
     const vw = document.documentElement.clientWidth;
     const vh = document.documentElement.clientHeight;
@@ -67,8 +81,16 @@
     const x = Math.min(Math.max(anchor.x + gap, 8), Math.max(8, vw - w - 8));
     let y = anchor.y + gap;
     if (y + h > vh - 8) y = Math.max(8, anchor.top - h - gap);
-    el.style.left = Math.round(x + window.scrollX) + 'px';
-    el.style.top = Math.round(y + window.scrollY) + 'px';
+    setPos(el, x, y);
+  }
+
+  // Above a client rect (used by the restore chip); falls below when there is no room.
+  function placeAbove(el, rect) {
+    const vw = document.documentElement.clientWidth;
+    const x = Math.min(Math.max(rect.left, 8), Math.max(8, vw - el.offsetWidth - 8));
+    let y = rect.top - el.offsetHeight - 6;
+    if (y < 8) y = rect.bottom + 6;
+    setPos(el, x, y);
   }
 
   // ---------- selection ----------
@@ -106,12 +128,14 @@
 
   function update() {
     if (mouseDown) return;
+    const sel = window.getSelection();
+    if (host && sel && sel.anchorNode === host) return;   // selecting inside our own UI
     const snap = snapshot();
     const ok = !!snap && hasTamil(snap.text);
-    if (cardEl && !(ok && current && snap.text === current.text)) hideCard();
+    if (viewEl && !(ok && current && snap.text === current.text)) hideView();
     if (ok) {
       current = snap;
-      if (settings.autoIcon && !cardEl) showIcon(snap);
+      if (settings.autoIcon && !viewEl) showIcon(snap);
     } else {
       current = null;
       hideIcon();
@@ -135,7 +159,7 @@
     iconEl.title = 'Transliterate with Kannaadi';
     iconEl.setAttribute('aria-label', 'Transliterate selected Tamil text');
     iconEl.addEventListener('mousedown', (e) => e.preventDefault());   // keep the selection alive
-    iconEl.addEventListener('click', () => showCard(snap));
+    iconEl.addEventListener('click', () => openView(snap));
     shadow.appendChild(iconEl);
     place(iconEl, snap.anchor, 6);
   }
@@ -144,7 +168,7 @@
     if (iconEl) { iconEl.remove(); iconEl = null; }
   }
 
-  // ---------- card ----------
+  // ---------- shared button helpers ----------
 
   function tamilVoice() {
     try { return speechSynthesis.getVoices().find((v) => /^ta([-_]|$)/i.test(v.lang)) || null; } catch (_) { return null; }
@@ -173,48 +197,152 @@
     return b;
   }
 
+  function copyButton(roman) {
+    const b = actionButton('Copy', 'Copy the English letters', async () => {
+      const ok = await copyText(roman);
+      b.textContent = ok ? 'Copied' : 'Press Ctrl+C';
+      setTimeout(() => { b.textContent = 'Copy'; }, 1300);
+    });
+    return b;
+  }
+
+  function speakButton(snap) {
+    const voice = tamilVoice();
+    if (!voice) return null;
+    return actionButton('🔊', 'Hear the Tamil', () => {
+      const u = new SpeechSynthesisUtterance(snap.text);
+      u.lang = voice.lang;
+      u.voice = voice;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    });
+  }
+
+  // ---------- views: lens (default) and card ----------
+
+  function openView(snap) {
+    const now = Date.now();
+    if (now - lastOpen < 300) return;   // the shortcut can arrive twice (command + page fallback)
+    lastOpen = now;
+    if (settings.view === 'lens' && snap.kind === 'range') showLens(snap);
+    else showCard(snap);
+  }
+
+  function hideView() {
+    if (viewEl) { viewEl.remove(); viewEl = null; }
+    lensState = null;
+    try { speechSynthesis.cancel(); } catch (_) { /* no speech support */ }
+  }
+
   async function showCard(snap) {
     ensureHost();
     await ready;
     hideIcon();
-    hideCard();
+    hideView();
     hidePill();
+    hideChip();
 
     const roman = transliterate(snap.text, settings.scheme);
-    cardEl = make('div', 'card');
-    cardEl.setAttribute('role', 'dialog');
-    cardEl.setAttribute('aria-label', 'Kannaadi transliteration');
+    const card = make('div', 'card');
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-label', 'Kannaadi transliteration');
+
+    const text = make('div', 'roman', roman);
+    text.title = snap.text;
 
     const actions = make('div', 'actions');
-    const copyBtn = actionButton('Copy', 'Copy the English letters', async () => {
-      const ok = await copyText(roman);
-      copyBtn.textContent = ok ? 'Copied' : 'Press Ctrl+C';
-      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1300);
-    });
-    actions.append(copyBtn, actionButton('Replace', 'Replace the Tamil on the page with English letters', () => replace(snap)));
-    const voice = tamilVoice();
-    if (voice) {
-      actions.append(actionButton('🔊', 'Hear the Tamil', () => {
-        const u = new SpeechSynthesisUtterance(snap.text);
-        u.lang = voice.lang;
-        u.voice = voice;
-        speechSynthesis.cancel();
-        speechSynthesis.speak(u);
-      }));
+    actions.append(copyButton(roman), actionButton('Replace', 'Replace the Tamil on the page', () => replace(snap)));
+    const speak = speakButton(snap);
+    if (speak) actions.append(speak);
+    actions.append(make('span', 'spacer'), actionButton('✕', 'Close', hideView));
+
+    card.append(text, actions);
+    shadow.appendChild(card);
+    viewEl = card;
+    place(card, snap.anchor, 8);
+  }
+
+  function lensRect(range) {
+    const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+    if (!rects.length) {
+      const b = range.getBoundingClientRect();
+      return b.width > 0 || b.height > 0 ? b : null;
     }
-    actions.append(make('span', 'spacer'), actionButton('✕', 'Close', hideCard));
-
-    cardEl.append(make('div', 'tamil', snap.text), make('div', 'roman', roman), actions);
-    shadow.appendChild(cardEl);
-    place(cardEl, snap.anchor, 8);
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for (const r of rects) {
+      left = Math.min(left, r.left);
+      top = Math.min(top, r.top);
+      right = Math.max(right, r.right);
+      bottom = Math.max(bottom, r.bottom);
+    }
+    return { left, top, right, bottom, width: right - left, height: bottom - top };
   }
 
-  function hideCard() {
-    if (cardEl) { cardEl.remove(); cardEl = null; }
-    try { speechSynthesis.cancel(); } catch (_) { /* no speech support */ }
+  function layoutLens() {
+    if (!lensState) return;
+    const rect = lensRect(lensState.snap.range);
+    if (!rect) return;
+    const { wrap, body, bar } = lensState;
+    setPos(wrap, rect.left - PAD, rect.top - PAD);
+    const w = Math.round(rect.width + PAD * 2);
+    body.style.minWidth = w + 'px';
+    body.style.maxWidth = Math.max(w, 320) + 'px';
+    body.style.minHeight = Math.round(rect.height + PAD * 2) + 'px';
+    const vh = document.documentElement.clientHeight;
+    wrap.classList.toggle('bar-top', rect.bottom + PAD + bar.offsetHeight + 12 > vh);
   }
 
-  // ---------- replace + undo ----------
+  async function showLens(snap) {
+    ensureHost();
+    await ready;
+    hideIcon();
+    hideView();
+    hidePill();
+    hideChip();
+
+    const probe = lensRect(snap.range);
+    if (!probe) { showCard(snap); return; }
+
+    const roman = transliterate(snap.text, settings.scheme);
+    const wrap = make('div', 'lens-wrap');
+    const body = make('div', 'lens');
+    body.setAttribute('role', 'dialog');
+    body.setAttribute('aria-label', 'Kannaadi transliteration');
+    body.title = snap.text;
+    body.append(make('div', 'lens-text', roman));
+
+    // match the page's text size so the English letters sit where the Tamil was
+    const host0 = snap.range.startContainer.nodeType === Node.TEXT_NODE
+      ? snap.range.startContainer.parentElement : snap.range.startContainer;
+    if (host0) {
+      const cs = getComputedStyle(host0);
+      const fs = Math.min(26, Math.max(13, parseFloat(cs.fontSize) || 16));
+      const lh = parseFloat(cs.lineHeight);
+      body.style.setProperty('--k-fs', fs + 'px');
+      body.style.setProperty('--k-lh', (Number.isFinite(lh) ? Math.max(lh, fs * 1.25) : fs * 1.45) + 'px');
+    }
+
+    const bar = make('div', 'lens-bar');
+    bar.append(
+      copyButton(roman),
+      actionButton('Replace', 'Replace the Tamil on the page', () => replace(snap)),
+      actionButton('Card', 'Show as a card instead', () => showCard(snap)),
+    );
+    const speak = speakButton(snap);
+    if (speak) bar.append(speak);
+    bar.append(actionButton('✕', 'Close', hideView));
+
+    wrap.append(body, bar);
+    shadow.appendChild(wrap);
+    viewEl = wrap;
+    lensState = { snap, wrap, body, bar };
+    layoutLens();
+  }
+
+  // ---------- replace (wrapped, restorable) ----------
 
   function textNodesIn(range) {
     const root = range.commonAncestorContainer;
@@ -226,57 +354,125 @@
   }
 
   function replace(snap) {
-    let undo = null;
+    hideView();
+    if (snap.kind === 'field') { replaceField(snap); return; }
 
-    if (snap.kind === 'field') {
-      const el = snap.el;
-      const original = el.value.slice(snap.start, snap.end);
-      if (original === snap.text) {
-        const out = transliterate(original, settings.scheme);
-        el.setRangeText(out, snap.start, snap.end, 'select');
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        undo = () => {
-          el.setRangeText(original, snap.start, snap.start + out.length, 'select');
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-      }
-    } else {
-      const range = snap.range;
-      const ops = [];
-      for (const node of textNodesIn(range)) {
-        const start = node === range.startContainer ? range.startOffset : 0;
-        const end = node === range.endContainer ? range.endOffset : node.length;
-        if (end <= start) continue;
-        const original = node.data.slice(start, end);
-        if (!hasTamil(original)) continue;
-        ops.push({ node, start, original, out: transliterate(original, settings.scheme) });
-      }
-      if (ops.length) {
-        for (const op of ops) op.node.replaceData(op.start, op.original.length, op.out);
-        const parent = ops[0].node.parentElement;
-        const editHost = parent && parent.closest('[contenteditable]:not([contenteditable="false"])');
-        const notify = () => { if (editHost) editHost.dispatchEvent(new InputEvent('input', { bubbles: true })); };
-        notify();
-        undo = () => {
-          for (const op of ops.slice().reverse()) {
-            if (op.node.isConnected) op.node.replaceData(op.start, op.out.length, op.original);
-          }
-          notify();
-        };
+    const range = snap.range;
+    const parts = [];
+    for (const node of textNodesIn(range)) {
+      const start = node === range.startContainer ? range.startOffset : 0;
+      const end = node === range.endContainer ? range.endOffset : node.length;
+      if (end > start && hasTamil(node.data.slice(start, end))) parts.push({ node, start, end });
+    }
+    if (!parts.length) return;
+
+    const parent = parts[0].node.parentElement;
+    if (parent && parent.isContentEditable) { replaceEditable(parts, snap); return; }
+
+    const wrappers = [];
+    for (const part of parts) wrapPart(part, wrappers);
+    try { window.getSelection().removeAllRanges(); } catch (_) { /* ignore */ }
+    showPill(() => wrappers.forEach(unwrap), snap.anchor);
+  }
+
+  // <kannaadi-w data-ta="வணக்கம்">vanakkam</kannaadi-w>: the Tamil stays on the element so it can be restored.
+  function wrapPart({ node, start, end }, wrappers) {
+    let target = node;
+    if (end < target.length) target.splitText(end);
+    if (start > 0) target = target.splitText(start);
+    const frag = document.createDocumentFragment();
+    for (const run of splitTamil(target.data)) {
+      if (run.tamil) {
+        const w = document.createElement('kannaadi-w');
+        w.dataset.ta = run.text;
+        w.textContent = transliterate(run.text, settings.scheme);
+        frag.append(w);
+        wrappers.push(w);
+      } else {
+        frag.append(document.createTextNode(run.text));
       }
     }
-
-    hideCard();
-    if (undo) showPill(undo, snap.anchor);
+    target.replaceWith(frag);
   }
+
+  function unwrap(w) {
+    if (!w.isConnected) return;
+    const parent = w.parentNode;
+    w.replaceWith(document.createTextNode(w.dataset.ta || w.textContent));
+    parent.normalize();
+  }
+
+  function restoreAll() {
+    hideChip();
+    document.querySelectorAll('kannaadi-w').forEach(unwrap);
+  }
+
+  // Inputs and editable areas: no wrapper elements (they would leak into what the user is writing).
+  // insertText keeps the browser's own undo stack, so Ctrl+Z works there.
+  function typeOver(text) {
+    let ok = false;
+    try { ok = document.execCommand('insertText', false, text); } catch (_) { /* fall back below */ }
+    return ok;
+  }
+
+  function replaceField(snap) {
+    const el = snap.el;
+    if (el.value.slice(snap.start, snap.end) !== snap.text) return;
+    const original = snap.text;
+    const out = transliterate(original, settings.scheme);
+    const apply = (from, to, text) => {
+      el.focus();
+      el.setSelectionRange(from, to);
+      if (!typeOver(text)) {
+        el.setRangeText(text, from, to, 'end');
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    };
+    apply(snap.start, snap.end, out);
+    showPill(() => apply(snap.start, snap.start + out.length, original), snap.anchor);
+  }
+
+  function replaceEditable(parts, snap) {
+    const sel = window.getSelection();
+    const editHost = parts[0].node.parentElement.closest('[contenteditable]:not([contenteditable="false"])');
+    if (editHost) editHost.focus();
+
+    const apply = (node, start, end, text) => {
+      const r = document.createRange();
+      r.setStart(node, start);
+      r.setEnd(node, end);
+      sel.removeAllRanges();
+      sel.addRange(r);
+      if (!typeOver(text)) node.replaceData(start, end - start, text);
+    };
+
+    const done = [];
+    for (const p of parts.slice().reverse()) {
+      const original = p.node.data.slice(p.start, p.end);
+      const out = transliterate(original, settings.scheme);
+      apply(p.node, p.start, p.end, out);
+      done.push({ node: p.node, start: p.start, original, out });
+    }
+    showPill(() => {
+      for (const d of done.slice().reverse()) {
+        if (d.node.isConnected && d.node.data.slice(d.start, d.start + d.out.length) === d.out) {
+          apply(d.node, d.start, d.start + d.out.length, d.original);
+        }
+      }
+    }, snap.anchor);
+  }
+
+  // ---------- "Replaced / Undo" pill ----------
 
   async function showPill(undo, anchor) {
     ensureHost();
     await ready;
     hidePill();
     pillEl = make('div', 'pill');
-    const undoBtn = actionButton('Undo', 'Put the Tamil text back', () => { undo(); hidePill(); });
-    pillEl.append(make('span', null, 'Replaced'), undoBtn);
+    pillEl.append(
+      make('span', null, 'Replaced'),
+      actionButton('Undo', 'Put the Tamil text back', () => { undo(); hidePill(); }),
+    );
     shadow.appendChild(pillEl);
     place(pillEl, anchor, 8);
     pillTimer = setTimeout(hidePill, 6000);
@@ -287,15 +483,58 @@
     if (pillEl) { pillEl.remove(); pillEl = null; }
   }
 
+  // ---------- hover chip: restore one word, or all ----------
+
+  async function showChip(word) {
+    ensureHost();
+    await ready;
+    if (!word.isConnected) return;
+    hideChip();
+    chipWord = word;
+    chipEl = make('div', 'chip');
+    chipEl.append(
+      make('span', 'chip-ta', word.dataset.ta || ''),
+      actionButton('↺ Restore', 'Put this word back', () => { unwrap(word); hideChip(); }),
+      actionButton('Restore all', 'Put all Tamil on this page back', restoreAll),
+    );
+    shadow.appendChild(chipEl);
+    placeAbove(chipEl, word.getBoundingClientRect());
+  }
+
+  function hideChip() {
+    clearTimeout(chipShowTimer);
+    clearTimeout(chipHideTimer);
+    chipWord = null;
+    if (chipEl) { chipEl.remove(); chipEl = null; }
+  }
+
+  document.addEventListener('mouseover', (e) => {
+    if (insideHost(e)) { clearTimeout(chipHideTimer); return; }
+    const word = e.target && e.target.closest ? e.target.closest('kannaadi-w') : null;
+    if (word) {
+      clearTimeout(chipHideTimer);
+      if (word !== chipWord) {
+        clearTimeout(chipShowTimer);
+        chipShowTimer = setTimeout(() => showChip(word), 200);
+      }
+    } else {
+      clearTimeout(chipShowTimer);
+      if (chipEl) chipHideTimer = setTimeout(hideChip, 350);
+    }
+  }, true);
+
   // ---------- wiring ----------
 
-  const insideHost = (e) => !!host && e.composedPath().includes(host);
+  function insideHost(e) {
+    return !!host && e.composedPath().includes(host);
+  }
 
   document.addEventListener('mousedown', (e) => {
     if (insideHost(e)) return;
     mouseDown = true;
-    hideCard();
+    hideView();
     hideIcon();
+    hideChip();
   }, true);
 
   document.addEventListener('mouseup', (e) => {
@@ -309,14 +548,39 @@
   document.addEventListener('selectionchange', () => scheduleUpdate(250));
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { hideCard(); hideIcon(); }
+    if (e.key === 'Escape') { hideView(); hideIcon(); hideChip(); return; }
+    // Fallback for when Chrome did not assign the extension shortcut.
+    if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyT') {
+      const snap = snapshot();
+      if (snap && hasTamil(snap.text)) {
+        e.preventDefault();
+        current = snap;
+        openView(snap);
+      }
+    }
   }, true);
+
+  // Keep the lens glued to the text when the page or an inner scroll box moves.
+  function relayout() {
+    if (layoutFrame || !(lensState || chipEl)) return;
+    layoutFrame = requestAnimationFrame(() => {
+      layoutFrame = 0;
+      layoutLens();
+      if (chipEl && chipWord && chipWord.isConnected) placeAbove(chipEl, chipWord.getBoundingClientRect());
+    });
+  }
+  window.addEventListener('scroll', relayout, { capture: true, passive: true });
+  window.addEventListener('resize', relayout);
 
   try {
     chrome.runtime.onMessage.addListener((msg) => {
-      if (!msg || msg.type !== 'kannaadi:open') return;
-      const snap = snapshot();
-      if (snap && hasTamil(snap.text)) { current = snap; showCard(snap); }
+      if (!msg) return;
+      if (msg.type === 'kannaadi:open') {
+        const snap = snapshot();
+        if (snap && hasTamil(snap.text)) { current = snap; openView(snap); }
+      } else if (msg.type === 'kannaadi:restoreAll') {
+        restoreAll();
+      }
     });
   } catch (_) { /* extension was reloaded */ }
 })();

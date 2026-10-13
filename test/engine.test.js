@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { transliterate, hasTamil } = require('../src/engine/transliterate.js');
+const { transliterate, hasTamil, splitTamil } = require('../src/engine/transliterate.js');
 
 const tanglish = [
   ['வணக்கம்', 'vanakkam'],
@@ -53,4 +53,30 @@ test('empty input', () => assert.equal(transliterate('', 'tanglish'), ''));
 test('hasTamil', () => {
   assert.equal(hasTamil('abc வணக்கம்'), true);
   assert.equal(hasTamil('hello'), false);
+});
+
+test('splitTamil separates Tamil words from everything else', () => {
+  assert.deepEqual(splitTamil('Hi வணக்கம், நன்றி!'), [
+    { tamil: false, text: 'Hi ' },
+    { tamil: true, text: 'வணக்கம்' },
+    { tamil: false, text: ', ' },
+    { tamil: true, text: 'நன்றி' },
+    { tamil: false, text: '!' },
+  ]);
+  assert.deepEqual(splitTamil(''), []);
+  assert.deepEqual(splitTamil('abc'), [{ tamil: false, text: 'abc' }]);
+});
+
+test('word-by-word output equals whole-text output (per-word restore relies on this)', () => {
+  const samples = [
+    'வணக்கம்! என் பெயர் கண்ணாடி. நன்றி, மீண்டும் சந்திப்போம்.',
+    'தமிழ் மொழி உலகின் மிகப் பழமையான மொழிகளில் ஒன்று.',
+    'Today I learned: தங்கம் means gold, and காற்று means wind.',
+  ];
+  for (const scheme of ['tanglish', 'iso']) {
+    for (const s of samples) {
+      const perRun = splitTamil(s).map((r) => (r.tamil ? transliterate(r.text, scheme) : r.text)).join('');
+      assert.equal(perRun, transliterate(s, scheme));
+    }
+  }
 });

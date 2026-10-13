@@ -1,0 +1,32 @@
+/* Side panel: fluid width, reuses the popup's glass look. */
+body {
+  width: auto;
+  min-height: 100vh;
+}
+
+.out.big {
+  min-height: 7em;
+  font-size: 17px;
+  white-space: pre-wrap;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+.row .seg { flex: 1; max-width: 220px; }
+
+#copy {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+#copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

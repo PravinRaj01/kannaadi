@@ -23,6 +23,14 @@
     </section>
 
     <section>
+      <span class="label">Show result as</span>
+      <div class="seg" role="radiogroup" aria-label="Result view">
+        <label><input type="radio" name="view" value="lens"><span>Lens on text</span></label>
+        <label><input type="radio" name="view" value="card"><span>Card beside</span></label>
+      </div>
+    </section>
+
+    <section>
       <span class="label">Style</span>
       <div class="seg" role="radiogroup" aria-label="Output style">
         <label><input type="radio" name="scheme" value="tanglish"><span>Tanglish</span></label>
@@ -31,17 +39,27 @@
       <p class="hint" id="hint"></p>
     </section>
 
-    <section class="row">
+    <section>
       <label class="switch">
         <input type="checkbox" id="autoIcon">
         <span>Show the icon when Tamil is selected</span>
       </label>
     </section>
 
+    <section class="tools">
+      <button type="button" id="restore">Restore all Tamil on this page</button>
+      <button type="button" id="sidepanel">Open side panel (PDF)</button>
+      <p class="note" id="status" hidden></p>
+    </section>
+
     <footer>
       <span>Shortcut <kbd id="kbd">&hellip;</kbd></span>
       <button type="button" id="shortcuts">Change</button>
     </footer>
+    <p class="note warn" id="shortcutNote" hidden>
+      Chrome has not assigned the shortcut (another app or extension may own it).
+      Alt+Shift+T still works on web pages; to use it on PDFs, set one here.
+    </p>
   </main>
 
   <script src="../engine/transliterate.js"></script>
