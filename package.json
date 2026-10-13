@@ -1,0 +1,11 @@
+{
+  "name": "kannaadi",
+  "version": "1.0.0",
+  "description": "Chrome extension: select Tamil text, get it in English letters (Tanglish) in a glass card.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/engine.test.js",
+    "icons": "powershell -ExecutionPolicy Bypass -File scripts/make-icons.ps1"
+  }
+}

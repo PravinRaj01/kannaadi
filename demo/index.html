@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ta">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kannaadi demo</title>
+  <style>
+    body { max-width: 720px; margin: 40px auto; padding: 0 16px; font: 18px/1.7 system-ui, "Nirmala UI", "Noto Sans Tamil", sans-serif;
+           background: linear-gradient(135deg, #d9f3ee, #d6dcff 55%, #f1e1ff); min-height: 100vh; color: #12202c; }
+    h1 { font-size: 26px; }
+    h2 { margin-top: 32px; font-size: 18px; color: #3b4a58; }
+    p, textarea, input, [contenteditable] { background: rgba(255,255,255,.55); border-radius: 12px; padding: 10px 14px; }
+    textarea, input, [contenteditable] { width: 100%; border: 1px solid rgba(0,0,0,.12); font: inherit; }
+    small { color: #51606d; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Kannaadi demo page</h1>
+  <small lang="en">Load the extension, then select any Tamil below. Click the glass icon or press Alt+Shift+T.
+  For file:// pages, enable "Allow access to file URLs" on the extension's details page.</small>
+
+  <h2 lang="en">Paragraph</h2>
+  <p>வணக்கம்! என் பெயர் கண்ணாடி. நன்றி, மீண்டும் சந்திப்போம்.</p>
+  <p>தமிழ் மொழி உலகின் மிகப் பழமையான மொழிகளில் ஒன்று. தமிழ்நாடு அதன் தாயகம்.</p>
+
+  <h2 lang="en">Formatted text (inline tags inside the selection)</h2>
+  <p>இன்று <b>சாப்பாடு</b> மிகவும் <i>சுவையாக</i> இருந்தது, <a href="#">மஞ்சள் பூக்கள்</a> அழகாக இருந்தன.</p>
+
+  <h2 lang="en">Mixed English + Tamil</h2>
+  <p lang="en">Today I learned a new word: தங்கம் means gold, and காற்று means wind.</p>
+
+  <h2 lang="en">Input and textarea (Replace + Undo)</h2>
+  <input type="text" value="தம்பி, நன்றாக இருக்கிறாயா?">
+  <br><br>
+  <textarea rows="3">பச்சை நிறம் எனக்கு மிகவும் பிடிக்கும்.
+வாழ்க்கை அழகானது.</textarea>
+
+  <h2 lang="en">Contenteditable</h2>
+  <div contenteditable="true">இது திருத்தக்கூடிய பகுதி. இங்கே தமிழில் தட்டச்சு செய்யலாம்.</div>
+</body>
+</html>

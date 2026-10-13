@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kannaadi</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="panel">
+    <header>
+      <span class="logo" aria-hidden="true">&#x0B95;</span>
+      <div>
+        <h1>Kannaadi <small lang="ta">&#x0B95;&#x0BA3;&#x0BCD;&#x0BA3;&#x0BBE;&#x0B9F;&#x0BBF;</small></h1>
+        <p>Tamil &rarr; English letters</p>
+      </div>
+    </header>
+
+    <section>
+      <label class="label" for="try">Try it</label>
+      <textarea id="try" rows="2" lang="ta" placeholder="Paste or type Tamil here"></textarea>
+      <output id="out" class="out" aria-live="polite">&nbsp;</output>
+    </section>
+
+    <section>
+      <span class="label">Style</span>
+      <div class="seg" role="radiogroup" aria-label="Output style">
+        <label><input type="radio" name="scheme" value="tanglish"><span>Tanglish</span></label>
+        <label><input type="radio" name="scheme" value="iso"><span>ISO 15919</span></label>
+      </div>
+      <p class="hint" id="hint"></p>
+    </section>
+
+    <section class="row">
+      <label class="switch">
+        <input type="checkbox" id="autoIcon">
+        <span>Show the icon when Tamil is selected</span>
+      </label>
+    </section>
+
+    <footer>
+      <span>Shortcut <kbd id="kbd">&hellip;</kbd></span>
+      <button type="button" id="shortcuts">Change</button>
+    </footer>
+  </main>
+
+  <script src="../engine/transliterate.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
