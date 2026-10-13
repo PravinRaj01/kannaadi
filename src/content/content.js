@@ -281,16 +281,56 @@
     return { left, top, right, bottom, width: right - left, height: bottom - top };
   }
 
+  // The part of the page the user can actually see: the viewport narrowed by every scroll / overflow box
+  // around the selection. Text scrolled out of a box must not drag the lens outside that box.
+  function visibleClip(range) {
+    let clip = { left: 0, top: 0, right: document.documentElement.clientWidth, bottom: document.documentElement.clientHeight };
+    const node = range.commonAncestorContainer;
+    let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    for (; el && el !== document.documentElement; el = el.parentElement) {
+      const cs = getComputedStyle(el);
+      if (!/auto|scroll|hidden|clip/.test(cs.overflowX + ' ' + cs.overflowY)) continue;
+      const r = el.getBoundingClientRect();
+      const left = r.left + el.clientLeft;
+      const top = r.top + el.clientTop;
+      clip = {
+        left: Math.max(clip.left, left),
+        top: Math.max(clip.top, top),
+        right: Math.min(clip.right, left + el.clientWidth),
+        bottom: Math.min(clip.bottom, top + el.clientHeight),
+      };
+    }
+    return clip;
+  }
+
   function layoutLens() {
     if (!lensState) return;
-    const rect = lensRect(lensState.snap.range);
-    if (!rect) return;
-    const { wrap, body, bar } = lensState;
+    const { wrap, body, bar, snap } = lensState;
+    const full = lensRect(snap.range);
+    if (!full) return;
+
+    const clip = visibleClip(snap.range);
+    const left = Math.max(full.left, clip.left);
+    const top = Math.max(full.top, clip.top);
+    const right = Math.min(full.right, clip.right);
+    const bottom = Math.min(full.bottom, clip.bottom);
+    if (right <= left || bottom <= top) {      // selection is scrolled completely out of view
+      wrap.style.visibility = 'hidden';
+      return;
+    }
+    wrap.style.visibility = '';
+
+    const rect = { left, top, bottom, width: right - left, height: bottom - top };
+    const truncated = full.height > rect.height + 1;   // part of the selection is out of view
     setPos(wrap, rect.left - PAD, rect.top - PAD);
     const w = Math.round(rect.width + PAD * 2);
     body.style.minWidth = w + 'px';
     body.style.maxWidth = Math.max(w, 320) + 'px';
     body.style.minHeight = Math.round(rect.height + PAD * 2) + 'px';
+    // a clipped lens keeps the visible area's size and scrolls inside, instead of spilling over the page
+    body.style.maxHeight = truncated ? Math.round(rect.height + PAD * 2) + 'px' : '';
+    body.classList.toggle('clipped', truncated);
+
     const vh = document.documentElement.clientHeight;
     wrap.classList.toggle('bar-top', rect.bottom + PAD + bar.offsetHeight + 12 > vh);
   }
@@ -312,7 +352,7 @@
     body.setAttribute('role', 'dialog');
     body.setAttribute('aria-label', 'Kannaadi transliteration');
     body.title = snap.text;
-    body.append(make('div', 'lens-text', roman));
+    body.append(make('div', 'lens-text', roman.replace(/\n{2,}/g, '\n')));
 
     // match the page's text size so the English letters sit where the Tamil was
     const host0 = snap.range.startContainer.nodeType === Node.TEXT_NODE
@@ -322,7 +362,9 @@
       const fs = Math.min(26, Math.max(13, parseFloat(cs.fontSize) || 16));
       const lh = parseFloat(cs.lineHeight);
       body.style.setProperty('--k-fs', fs + 'px');
-      body.style.setProperty('--k-lh', (Number.isFinite(lh) ? Math.max(lh, fs * 1.25) : fs * 1.45) + 'px');
+      // follow the page's line height, but not the airy 1.7+ some pages use
+      const line = Number.isFinite(lh) ? Math.min(Math.max(lh, fs * 1.25), fs * 1.6) : fs * 1.45;
+      body.style.setProperty('--k-lh', line + 'px');
     }
 
     const bar = make('div', 'lens-bar');
