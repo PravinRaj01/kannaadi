@@ -225,6 +225,29 @@ button:focus-visible,
 textarea:focus-visible,
 .try summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* ---- support links ---- */
+.support {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--edge);
+  color: var(--muted);
+  font-size: 12px;
+}
+.support span { margin-right: auto; }
+.support a {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+.support a:hover { background: var(--accent-soft); color: var(--accent); }
+.support a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .note { margin: 0; color: var(--muted); font-size: 12px; }
 .note.warn { color: var(--warn); }
 

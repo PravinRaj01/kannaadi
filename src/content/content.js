@@ -34,7 +34,8 @@
   let pointer = null;       // last mouseup position, used to anchor text-field selections
   let mouseDown = false;
 
-  const PAD = 6;            // how far the lens extends past the selected text
+  const PAD_X = 8;          // how far the lens extends past the selected text, sideways
+  const PAD_Y = 10;         // ... and up/down (line boxes are taller than the glyph rectangles)
 
   // ---------- host + shadow DOM ----------
 
@@ -322,17 +323,17 @@
 
     const rect = { left, top, bottom, width: right - left, height: bottom - top };
     const truncated = full.height > rect.height + 1;   // part of the selection is out of view
-    setPos(wrap, rect.left - PAD, rect.top - PAD);
-    const w = Math.round(rect.width + PAD * 2);
+    setPos(wrap, rect.left - PAD_X, rect.top - PAD_Y);
+    const w = Math.round(rect.width + PAD_X * 2);
     body.style.minWidth = w + 'px';
     body.style.maxWidth = Math.max(w, 320) + 'px';
-    body.style.minHeight = Math.round(rect.height + PAD * 2) + 'px';
+    body.style.minHeight = Math.round(rect.height + PAD_Y * 2) + 'px';
     // a clipped lens keeps the visible area's size and scrolls inside, instead of spilling over the page
-    body.style.maxHeight = truncated ? Math.round(rect.height + PAD * 2) + 'px' : '';
+    body.style.maxHeight = truncated ? Math.round(rect.height + PAD_Y * 2) + 'px' : '';
     body.classList.toggle('clipped', truncated);
 
     const vh = document.documentElement.clientHeight;
-    wrap.classList.toggle('bar-top', rect.bottom + PAD + bar.offsetHeight + 12 > vh);
+    wrap.classList.toggle('bar-top', rect.bottom + PAD_Y + bar.offsetHeight + 12 > vh);
   }
 
   async function showLens(snap) {
@@ -414,7 +415,14 @@
     const wrappers = [];
     for (const part of parts) wrapPart(part, wrappers);
     try { window.getSelection().removeAllRanges(); } catch (_) { /* ignore */ }
-    showPill(() => wrappers.forEach(unwrap), snap.anchor);
+    // sit the pill at the end of the replaced text (it is shorter now, so the old anchor may be over other text)
+    let anchor = snap.anchor;
+    const lastWrapper = wrappers[wrappers.length - 1];
+    if (lastWrapper) {
+      const r = lastWrapper.getBoundingClientRect();
+      if (r.width || r.height) anchor = { x: r.right, y: r.bottom, top: r.top };
+    }
+    showPill(() => wrappers.forEach(unwrap), anchor);
   }
 
   // <kannaadi-w data-ta="வணக்கம்">vanakkam</kannaadi-w>: the Tamil stays on the element so it can be restored.

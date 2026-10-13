@@ -342,6 +342,15 @@ node scripts/eval.js path/to/ta.translit.sampled.train.tsv --worst 40           
 - A user-editable loanword dictionary and a per-site on/off list.
 - Firefox build.
 
+## Support
+
+Kannaadi is free and open source. If it saves you time, you can support its development:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/pravinraj)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/pravinraj)
+
+Bug reports, Tamil spelling corrections and ideas are just as welcome: [open an issue](https://github.com/PravinRaj01/kannaadi/issues). See also the [privacy policy](PRIVACY.md).
+
 ## Credits and data
 
 - [Dakshina dataset](https://github.com/google-research-datasets/dakshina) (Google Research, CC BY-SA 4.0): used offline to tune and evaluate spellings. Not redistributed.

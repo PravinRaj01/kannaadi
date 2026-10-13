@@ -2,7 +2,8 @@
   "manifest_version": 3,
   "name": "Kannaadi - Tamil to English letters",
   "short_name": "Kannaadi",
-  "version": "1.2.0",
+  "version": "1.2.1",
+  "homepage_url": "https://github.com/PravinRaj01/kannaadi",
   "description": "Select Tamil text, tap the glass icon (or press Alt+Shift+T) and read it in English letters, right on top of the text.",
   "icons": {
     "16": "icons/icon16.png",
