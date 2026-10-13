@@ -9,7 +9,7 @@
 </head>
 <body>
   <main class="panel">
-    <header>
+    <header class="head">
       <span class="logo" aria-hidden="true">&#x0B95;</span>
       <div>
         <h1>Kannaadi <small lang="ta">&#x0B95;&#x0BA3;&#x0BCD;&#x0BA3;&#x0BBE;&#x0B9F;&#x0BBF;</small></h1>
@@ -18,18 +18,19 @@
     </header>
 
     <section>
-      <label class="label" for="src">Tamil text</label>
+      <h2><label for="src">Tamil text</label></h2>
       <textarea id="src" rows="5" lang="ta" placeholder="The selected text shows up here. You can also paste Tamil."></textarea>
     </section>
 
     <section>
-      <span class="label">English letters</span>
+      <h2>English letters</h2>
       <output id="out" class="out big" aria-live="polite">&nbsp;</output>
       <div class="row">
         <button type="button" id="copy">Copy</button>
-        <div class="seg" role="radiogroup" aria-label="Output style">
+        <div class="seg" role="radiogroup" aria-label="Spelling style">
           <label><input type="radio" name="scheme" value="tanglish"><span>Tanglish</span></label>
-          <label><input type="radio" name="scheme" value="iso"><span>ISO 15919</span></label>
+          <label><input type="radio" name="scheme" value="casual"><span>Casual</span></label>
+          <label><input type="radio" name="scheme" value="iso"><span>ISO</span></label>
         </div>
       </div>
     </section>

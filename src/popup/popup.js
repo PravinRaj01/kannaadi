@@ -8,22 +8,30 @@
   const $ = (sel) => document.querySelector(sel);
   const input = $('#try');
   const out = $('#out');
-  const hint = $('#hint');
 
-  const HINTS = {
-    tanglish: 'How people type Tamil: vanakkam, nandri, thamizh.',
-    iso: 'Academic standard with diacritics: n with a dot below, a retroflex zh.',
-  };
+  // Words that come out differently in each style, so the cards show what you would get.
+  const SAMPLE = 'அம்மா · பச்சை · நன்றி';
 
-  function render() {
+  function renderSamples() {
+    for (const el of document.querySelectorAll('.sample')) {
+      const text = SAMPLE.split(' · ').map((w) => transliterate(w, el.dataset.scheme)).join(' · ');
+      el.textContent = text;
+    }
+  }
+
+  function renderTry() {
     out.textContent = transliterate(input.value, settings.scheme) || ' ';
-    hint.textContent = HINTS[settings.scheme] || '';
+  }
+
+  function check(name, value) {
+    const el = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
+    if (el) el.checked = true;
   }
 
   function save(patch) {
     Object.assign(settings, patch);
     chrome.storage.sync.set(patch);
-    render();
+    renderTry();
   }
 
   function say(text) {
@@ -34,11 +42,12 @@
 
   chrome.storage.sync.get(defaults, (stored) => {
     Object.assign(settings, stored);
-    document.querySelector('input[name="scheme"][value="' + settings.scheme + '"]').checked = true;
-    document.querySelector('input[name="view"][value="' + settings.view + '"]').checked = true;
+    check('scheme', settings.scheme);
+    check('view', settings.view);
     $('#autoIcon').checked = !!settings.autoIcon;
-    render();
+    renderTry();
   });
+  renderSamples();
 
   for (const radio of document.querySelectorAll('input[name="scheme"]')) {
     radio.addEventListener('change', () => { if (radio.checked) save({ scheme: radio.value }); });
@@ -47,7 +56,7 @@
     radio.addEventListener('change', () => { if (radio.checked) save({ view: radio.value }); });
   }
   $('#autoIcon').addEventListener('change', (e) => save({ autoIcon: e.target.checked }));
-  input.addEventListener('input', render);
+  input.addEventListener('input', renderTry);
 
   $('#restore').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -73,7 +82,7 @@
   chrome.commands.getAll((commands) => {
     const cmd = commands.find((c) => c.name === 'transliterate-selection');
     const assigned = !!(cmd && cmd.shortcut);
-    $('#kbd').textContent = assigned ? cmd.shortcut : 'Alt+Shift+T (page only)';
+    $('#kbd').textContent = assigned ? cmd.shortcut : 'Alt+Shift+T';
     $('#shortcuts').textContent = assigned ? 'Change' : 'Set shortcut';
     $('#shortcutNote').hidden = assigned;
   });

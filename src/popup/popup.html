@@ -8,7 +8,7 @@
 </head>
 <body>
   <main class="panel">
-    <header>
+    <header class="head">
       <span class="logo" aria-hidden="true">&#x0B95;</span>
       <div>
         <h1>Kannaadi <small lang="ta">&#x0B95;&#x0BA3;&#x0BCD;&#x0BA3;&#x0BBE;&#x0B9F;&#x0BBF;</small></h1>
@@ -16,50 +16,90 @@
       </div>
     </header>
 
-    <section>
-      <label class="label" for="try">Try it</label>
-      <textarea id="try" rows="2" lang="ta" placeholder="Paste or type Tamil here"></textarea>
-      <output id="out" class="out" aria-live="polite">&nbsp;</output>
-    </section>
-
-    <section>
-      <span class="label">Show result as</span>
-      <div class="seg" role="radiogroup" aria-label="Result view">
-        <label><input type="radio" name="view" value="lens"><span>Lens on text</span></label>
-        <label><input type="radio" name="view" value="card"><span>Card beside</span></label>
+    <section aria-labelledby="h-style">
+      <h2 id="h-style">Spelling style</h2>
+      <div class="options" role="radiogroup" aria-labelledby="h-style">
+        <label class="opt">
+          <input type="radio" name="scheme" value="tanglish">
+          <span class="opt-body">
+            <span class="opt-top"><b>Tanglish</b><span class="sample" data-scheme="tanglish"></span></span>
+            <span class="opt-desc">How people type Tamil. Tuned on real spellings.</span>
+          </span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="scheme" value="casual">
+          <span class="opt-body">
+            <span class="opt-top"><b>Casual</b><span class="sample" data-scheme="casual"></span></span>
+            <span class="opt-desc">Lighter endings, a touch less exact.</span>
+          </span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="scheme" value="iso">
+          <span class="opt-body">
+            <span class="opt-top"><b>ISO 15919</b><span class="sample" data-scheme="iso"></span></span>
+            <span class="opt-desc">Academic, with diacritics.</span>
+          </span>
+        </label>
       </div>
     </section>
 
-    <section>
-      <span class="label">Style</span>
-      <div class="seg" role="radiogroup" aria-label="Output style">
-        <label><input type="radio" name="scheme" value="tanglish"><span>Tanglish</span></label>
-        <label><input type="radio" name="scheme" value="iso"><span>ISO 15919</span></label>
+    <section aria-labelledby="h-view">
+      <h2 id="h-view">Show result as</h2>
+      <div class="options two" role="radiogroup" aria-labelledby="h-view">
+        <label class="opt view">
+          <input type="radio" name="view" value="lens">
+          <span class="opt-body">
+            <svg viewBox="0 0 64 36" aria-hidden="true">
+              <g class="ink"><rect x="4" y="5" width="56" height="3" rx="1.5"/><rect x="4" y="12" width="40" height="3" rx="1.5"/><rect x="4" y="28" width="48" height="3" rx="1.5"/></g>
+              <rect class="glass" x="2" y="10" width="60" height="16" rx="5"/>
+              <g class="glass-ink"><rect x="8" y="15" width="34" height="3" rx="1.5"/><rect x="8" y="20" width="22" height="3" rx="1.5"/></g>
+            </svg>
+            <b>Lens</b>
+            <span class="opt-desc">On top of the text</span>
+          </span>
+        </label>
+        <label class="opt view">
+          <input type="radio" name="view" value="card">
+          <span class="opt-body">
+            <svg viewBox="0 0 64 36" aria-hidden="true">
+              <g class="ink"><rect x="4" y="5" width="34" height="3" rx="1.5"/><rect x="4" y="12" width="28" height="3" rx="1.5"/><rect x="4" y="19" width="34" height="3" rx="1.5"/><rect x="4" y="26" width="22" height="3" rx="1.5"/></g>
+              <rect class="glass" x="36" y="12" width="26" height="18" rx="5"/>
+              <g class="glass-ink"><rect x="40" y="17" width="16" height="3" rx="1.5"/><rect x="40" y="23" width="10" height="3" rx="1.5"/></g>
+            </svg>
+            <b>Card</b>
+            <span class="opt-desc">Beside the text</span>
+          </span>
+        </label>
       </div>
-      <p class="hint" id="hint"></p>
     </section>
 
-    <section>
+    <section class="rows">
       <label class="switch">
-        <input type="checkbox" id="autoIcon">
         <span>Show the icon when Tamil is selected</span>
+        <input type="checkbox" id="autoIcon" role="switch">
+        <span class="track" aria-hidden="true"><span class="thumb"></span></span>
       </label>
+      <div class="row">
+        <span>Shortcut <kbd id="kbd">&hellip;</kbd></span>
+        <button type="button" id="shortcuts" class="link">Change</button>
+      </div>
+      <p class="note warn" id="shortcutNote" hidden>
+        Chrome has not assigned the shortcut (another app or extension may own it).
+        Alt+Shift+T still works on web pages; to use it on PDFs, set one here.
+      </p>
     </section>
+
+    <details class="try">
+      <summary>Try it</summary>
+      <textarea id="try" rows="2" lang="ta" aria-label="Tamil text to try" placeholder="Paste or type Tamil here"></textarea>
+      <output id="out" class="out" aria-live="polite">&nbsp;</output>
+    </details>
 
     <section class="tools">
-      <button type="button" id="restore">Restore all Tamil on this page</button>
-      <button type="button" id="sidepanel">Open side panel (PDF)</button>
-      <p class="note" id="status" hidden></p>
+      <button type="button" id="restore" title="Put all replaced Tamil on this page back">Restore Tamil</button>
+      <button type="button" id="sidepanel">Side panel (PDF)</button>
     </section>
-
-    <footer>
-      <span>Shortcut <kbd id="kbd">&hellip;</kbd></span>
-      <button type="button" id="shortcuts">Change</button>
-    </footer>
-    <p class="note warn" id="shortcutNote" hidden>
-      Chrome has not assigned the shortcut (another app or extension may own it).
-      Alt+Shift+T still works on web pages; to use it on PDFs, set one here.
-    </p>
+    <p class="note" id="status" hidden></p>
   </main>
 
   <script src="../engine/transliterate.js"></script>
