@@ -1,5 +1,9 @@
 # Kannaadi (கண்ணாடி)
 
+<p align="center">
+  <img src="docs/images/kannaadi-banner.jpg" alt="Kannaadi: the glass க app icon, the name Kannaadi, and the example வணக்கம் becoming vanakkam" width="720">
+</p>
+
 **Read Tamil script in English letters, right where it is on the page.**
 Select Tamil text in Chrome, tap the small glass icon (or press <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd>), and a frosted-glass lens slides over the text showing it in Latin letters. *Kannaadi* means "glass" or "mirror" in Tamil: the script on one side, its reflection in English letters on the other.
 
@@ -227,6 +231,11 @@ The dataset is used only to measure and tune. It is not in this repo and not in 
 ---
 
 ## Tech stack
+
+<p align="center">
+  <img src="docs/images/kannaadi-tech-overview.jpg" alt="Illustration: the Kannaadi lens over a Tamil article, surrounded by badges for Manifest V3, JavaScript, HTML/CSS, Shadow DOM, Side Panel API, on-device processing and a data-tuned engine" width="860">
+  <br><sub>Illustration of the lens and the stack. The real UI is described in <a href="#from-selection-to-lens">From selection to lens</a>.</sub>
+</p>
 
 | Layer | Choice | Why |
 | --- | --- | --- |
