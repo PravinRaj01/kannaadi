@@ -291,6 +291,8 @@
     for (; el && el !== document.documentElement; el = el.parentElement) {
       const cs = getComputedStyle(el);
       if (!/auto|scroll|hidden|clip/.test(cs.overflowX + ' ' + cs.overflowY)) continue;
+      // inline / display:contents boxes report a 0x0 client area and do not clip anything themselves
+      if (cs.display === 'inline' || cs.display === 'contents') continue;
       const r = el.getBoundingClientRect();
       const left = r.left + el.clientLeft;
       const top = r.top + el.clientTop;
