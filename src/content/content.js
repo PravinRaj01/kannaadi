@@ -320,10 +320,10 @@
   }
 
   function layoutLens() {
-    if (!lensState) return;
+    if (!lensState) return false;
     const { wrap, body, bar, snap } = lensState;
     const full = lensRect(snap.range);
-    if (!full) return;
+    if (!full) return false;
 
     const clip = visibleClip(snap.range);
     const left = Math.max(full.left, clip.left);
@@ -332,7 +332,7 @@
     const bottom = Math.min(full.bottom, clip.bottom);
     if (right <= left || bottom <= top) {      // selection is scrolled completely out of view
       wrap.style.visibility = 'hidden';
-      return;
+      return false;
     }
     wrap.style.visibility = '';
 
@@ -349,6 +349,11 @@
 
     const vh = document.documentElement.clientHeight;
     wrap.classList.toggle('bar-top', rect.bottom + PAD_Y + bar.offsetHeight + 12 > vh);
+
+    // is the lens actually on screen? (reported to showLens, which falls back to the card when it is not)
+    const b = body.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    return b.width > 0 && b.height > 0 && b.right > 0 && b.bottom > 0 && b.left < vw && b.top < vh;
   }
 
   async function showLens(snap) {
@@ -397,7 +402,7 @@
     shadow.appendChild(wrap);
     viewEl = wrap;
     lensState = { snap, wrap, body, bar };
-    layoutLens();
+    if (!layoutLens()) showCard(snap);   // the lens cannot be shown over this text; never leave the user with nothing
   }
 
   // ---------- replace (wrapped, restorable) ----------
