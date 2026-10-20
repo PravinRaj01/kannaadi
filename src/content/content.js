@@ -301,7 +301,11 @@
     let clip = { left: 0, top: 0, right: document.documentElement.clientWidth, bottom: document.documentElement.clientHeight };
     const node = range.commonAncestorContainer;
     let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    const rootOverflow = getComputedStyle(document.documentElement);
+    const bodyIsViewport = rootOverflow.overflowX === 'visible' && rootOverflow.overflowY === 'visible';
     for (; el && el !== document.documentElement; el = el.parentElement) {
+      // <body>'s overflow is handed to the viewport (YouTube: scroll, with a 0px client height), so it is no box
+      if (el === document.body && bodyIsViewport) continue;
       const cs = getComputedStyle(el);
       if (!/auto|scroll|hidden|clip/.test(cs.overflowX + ' ' + cs.overflowY)) continue;
       // inline / display:contents boxes report a 0x0 client area and do not clip anything themselves
