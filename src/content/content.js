@@ -39,6 +39,17 @@
 
   // ---------- host + shadow DOM ----------
 
+  function loadCss() {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage({ type: 'kannaadi:css' }, (res) => {
+          void chrome.runtime.lastError;
+          resolve((res && res.css) || '');
+        });
+      } catch (_) { resolve(''); }
+    });
+  }
+
   function ensureHost() {
     if (host && host.isConnected) return;
     host = document.createElement('div');
@@ -48,15 +59,17 @@
       'width:0!important;height:0!important;z-index:2147483647!important;visibility:hidden!important;');
     shadow = host.attachShadow({ mode: 'closed' });
 
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = chrome.runtime.getURL('src/content/ui.css');
-    ready = new Promise((resolve) => {
-      const done = () => { host.style.setProperty('visibility', 'visible', 'important'); resolve(); };
-      link.addEventListener('load', done);
-      link.addEventListener('error', done);
+    // The stylesheet comes through the background worker and is applied as a constructed sheet: a <link> to
+    // chrome-extension:// is refused on some pages (YouTube), and a <style> can be blocked by page CSP.
+    const target = host;
+    ready = loadCss().then((css) => {
+      try {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(css);
+        shadow.adoptedStyleSheets = [sheet];
+      } catch (_) { /* unstyled is better than broken */ }
+      target.style.setProperty('visibility', 'visible', 'important');
     });
-    shadow.appendChild(link);
     document.documentElement.appendChild(host);
     try { speechSynthesis.getVoices(); } catch (_) { /* voices load lazily */ }
   }

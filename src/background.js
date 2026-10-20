@@ -13,6 +13,19 @@ function looksLikePdf(info, tab) {
   return urls.some((u) => /\.pdf([?#]|$)/i.test(u) || u.includes(PDF_VIEWER_ID));
 }
 
+// The content script's stylesheet, handed over as text (see ensureHost in content.js).
+let cssText = null;
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (!msg || msg.type !== 'kannaadi:css') return false;
+  (async () => {
+    try {
+      if (cssText == null) cssText = await (await fetch(chrome.runtime.getURL('src/content/ui.css'))).text();
+      sendResponse({ css: cssText });
+    } catch (_) { sendResponse({ css: '' }); }
+  })();
+  return true;
+});
+
 chrome.commands.onCommand.addListener(async (command, tab) => {
   if (command !== 'transliterate-selection') return;
   tab = tab || (await activeTab());
